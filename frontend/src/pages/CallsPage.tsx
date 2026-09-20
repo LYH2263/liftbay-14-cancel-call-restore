@@ -22,6 +22,13 @@ export default function CallsPage() {
       reload();
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
+  async function cancel(id: number) {
+    setErr("");
+    try {
+      await api(`/calls/${id}/cancel`, { method: "POST" });
+      reload();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+  }
   return (<>
     <h2>呼梯</h2>
     <div className="toolbar">
@@ -32,7 +39,8 @@ export default function CallsPage() {
       <button onClick={create}>登记呼梯</button>
     </div>
     {err && <div className="err">{err}</div>}
-    <table className="table"><thead><tr><th>ID</th><th>楼层</th><th>方向</th><th>人数</th><th>状态</th><th>轿厢</th><th>评分</th></tr></thead>
-    <tbody>{rows.map(c => <tr key={c.id}><td>{c.id}</td><td className="mono">{c.floor}</td><td>{c.direction}</td><td>{c.passengers}</td><td>{c.status}</td><td>{c.assigned_car_id ?? "—"}</td><td className="mono">{c.score || "—"}</td></tr>)}</tbody></table>
+    <table className="table"><thead><tr><th>ID</th><th>楼层</th><th>方向</th><th>人数</th><th>状态</th><th>轿厢</th><th>评分</th><th></th></tr></thead>
+    <tbody>{rows.map(c => <tr key={c.id}><td>{c.id}</td><td className="mono">{c.floor}</td><td>{c.direction}</td><td>{c.passengers}</td><td>{c.status}</td><td>{c.assigned_car_id ?? "—"}</td><td className="mono">{c.score || "—"}</td>
+      <td>{(c.status === "waiting" || c.status === "assigned") && <button onClick={() => cancel(c.id)}>取消</button>}</td></tr>)}</tbody></table>
   </>);
 }
