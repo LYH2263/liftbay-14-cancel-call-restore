@@ -230,6 +230,7 @@ button {
   background: var(--shaft-teal); color: #042018; font-weight: 700;
   border: none; cursor: pointer;
 }
+.btn-danger { background: #b5403a; color: #fff5f4; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td {
   border-bottom: 1px solid var(--line); padding: .5rem .35rem;

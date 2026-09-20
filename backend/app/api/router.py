@@ -100,6 +100,45 @@ def dispatch(body: DispatchRequest, db: Session = Depends(get_db)):
     return ticket
 
 
+@api_router.post("/calls/{call_id}/cancel", response_model=CallOut)
+def cancel_call(call_id: int, db: Session = Depends(get_db)):
+    ticket = db.get(CallTicket, call_id)
+    if not ticket:
+        raise HTTPException(404, "呼梯不存在")
+    if ticket.status == "rejected":
+        raise HTTPException(400, "已拒派呼梯不可取消")
+    if ticket.status == "cancelled":
+        raise HTTPException(400, "呼梯已取消")
+    if ticket.status != "assigned":
+        # waiting：仅落状态，待派列表与拥堵均按 waiting 过滤，自动不再计入
+        ticket.status = "cancelled"
+        db.add(DispatchLog(call_id=ticket.id, car_id=None, detail="乘客取消等待呼梯"))
+        db.commit()
+        db.refresh(ticket)
+        return ticket
+
+    # assigned：回退该笔乘客占用的轿厢载荷
+    car = db.get(ElevatorCar, ticket.assigned_car_id)
+    ticket.status = "cancelled"
+    if car is not None:
+        car.load = max(0, car.load - ticket.passengers)
+        if car.load == 0:
+            # 载荷清空：轿厢转 idle，楼层保持派工后所在层
+            car.direction = "idle"
+        db.add(
+            DispatchLog(
+                call_id=ticket.id,
+                car_id=car.id,
+                detail=f"乘客取消，{car.label} 载荷回退 {ticket.passengers} 人（剩余 {car.load}）",
+            )
+        )
+    else:
+        db.add(DispatchLog(call_id=ticket.id, car_id=None, detail="乘客取消（轿厢缺失）"))
+    db.commit()
+    db.refresh(ticket)
+    return ticket
+
+
 @api_router.get("/replay", response_model=list[LogOut])
 def replay(db: Session = Depends(get_db)):
     return db.scalars(select(DispatchLog).order_by(DispatchLog.id.desc())).all()
